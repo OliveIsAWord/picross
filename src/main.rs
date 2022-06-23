@@ -5,11 +5,13 @@ mod board;
 mod cell;
 mod hint;
 
+use board::Board;
 use cell::Cell;
 use hint::Hint;
 use std::fmt;
 use std::num::NonZeroUsize;
 use std::pin::Pin;
+use std::time::Instant;
 
 struct HintHolder<'a> {
     source: Pin<Vec<Vec<NonZeroUsize>>>,
@@ -35,18 +37,17 @@ impl<'a> HintHolder<'a> {
 }
 
 #[derive(Debug, Default)]
-struct Board<'a> {
-    board: Vec<Option<Cell>>,
+struct Picross<'a> {
+    board: Board<Option<Cell>>,
     row_hints: &'a [Hint<'a>],
     col_hints: &'a [Hint<'a>],
     _backtrack: Vec<Self>,
 }
 
-impl<'a> Board<'a> {
+impl<'a> Picross<'a> {
     pub fn new(row_hints: &'a [Hint<'a>], col_hints: &'a [Hint<'a>]) -> Self {
-        let num_cells = row_hints.len() * col_hints.len();
         Self {
-            board: vec![None; num_cells],
+            board: Board::new_default(col_hints.len(), row_hints.len()),
             row_hints,
             col_hints,
             ..Self::default()
@@ -54,54 +55,60 @@ impl<'a> Board<'a> {
     }
 }
 
-impl Board<'_> {
+impl Picross<'_> {
     pub const fn width(&self) -> usize {
         self.col_hints.len()
     }
     pub const fn height(&self) -> usize {
         self.row_hints.len()
     }
-
-    pub fn rows(&self) -> Vec<Vec<Option<Cell>>> {
-        self.board
-            .chunks_exact(self.width())
-            .map(<[_]>::to_vec)
-            .collect()
-    }
-    pub fn cols(&self) -> Vec<Vec<Option<Cell>>> {
-        let (w, h) = (self.width(), self.height());
-        let mut v = Vec::with_capacity(w);
-        for x in 0..w {
-            let mut col = Vec::with_capacity(h);
-            for y in 0..h {
-                col.push(self.board[x + y * w]);
+    pub fn find_solution(&mut self) -> Option<Board<Cell>> {
+        loop {
+            let mut progressed = false;
+            for (y, hint) in self.row_hints.iter().enumerate() {
+                let row = self.board.row(y);
+                let new_row = hint.brute_progress(row)?;
+                if row != new_row {
+                    self.board.set_row(y, new_row);
+                    progressed = true;
+                    //println!("-----------\n{}", self.board);
+                }
             }
-            v.push(col);
+            for (x, hint) in self.col_hints.iter().enumerate() {
+                let col = self.board.col(x);
+                let new_col = hint.brute_progress(&col)?;
+                if col != new_col {
+                    self.board.set_col(x, new_col);
+                    progressed = true;
+                    //println!("-----------\n{}", self.board);
+                }
+            }
+            if progressed {
+                if self.board.inner().iter().all(Option::is_some) {
+                    let (w, h) = (self.width(), self.height());
+                    let mut finished_board = Board::new_default(w, h);
+                    for y in 0..h {
+                        let finished_row = self
+                            .board
+                            .row(y)
+                            .iter()
+                            .copied()
+                            .map(Option::unwrap)
+                            .collect();
+                        finished_board.set_row(y, finished_row);
+                    }
+                    return Some(finished_board);
+                }
+            } else {
+                return None;
+            }
         }
-        v
-    }
-    pub fn find_solution(&mut self) -> Option<Vec<Cell>> {
-        let _ = self;
-        todo!()
     }
 }
 
-impl fmt::Display for Board<'_> {
+impl fmt::Display for Picross<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for y in 0..self.height() {
-            if y > 0 {
-                writeln!(f)?;
-            }
-            for x in 0..self.width() {
-                let c = match self.board[x + y * self.width()] {
-                    None => '?',
-                    Some(false) => '.',
-                    Some(true) => 'X',
-                };
-                write!(f, "{}", c)?;
-            }
-        }
-        Ok(())
+        write!(f, "{}", self.board)
     }
 }
 
@@ -117,13 +124,17 @@ fn make_hints(s: &str) -> Option<HintHolder> {
 }
 
 fn main() {
-    //let u = |x| NonZeroUsize::new(x).unwrap();
-    // let row_hints = vec![vec![u(4)], vec![u(1)], vec![u(5)], vec![u(1)]];
-    // let col_hints = vec![vec![u(3)], vec![u(1), u(1)], vec![u(1), u(1)], vec![u(1), u(1)], vec![u(2)]];
-    let row_hints = make_hints("4, 1, 5, 1").unwrap();
-    let col_hints = make_hints("3, 1 1, 1 1, 1 1, 2").unwrap();
-    let mut b = Board::new(row_hints.get(), col_hints.get());
-    println!("{}", b);
-    let bs = b.find_solution().unwrap();
-    println!("{:?}", bs);
+    std::env::set_var("RUST_BACKTRACE", "1");
+    //std::env::set_var("RUST_BACKTRACE", "full");
+    let row_hints = make_hints("1, 5, 3, 1 2, 3 4, 7, 7, 7, 3 3, 5").unwrap();
+    let col_hints = make_hints("3, 1 5, 2 6, 8 1, 2 6, 1 5, 5, 2, 2, 2").unwrap();
+    let mut b = Picross::new(row_hints.get(), col_hints.get());
+    let start = Instant::now();
+    let bs = b.find_solution();
+    let time = start.elapsed();
+    match bs {
+        Some(solved) => println!("\nFound solution:\n{}", solved),
+        None => println!("\nFailed - found partial solution:\n{}", b),
+    }
+    println!("Time taken: {}μs", time.as_micros());
 }

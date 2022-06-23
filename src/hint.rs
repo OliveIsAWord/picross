@@ -17,6 +17,7 @@ impl Hint<'_> {
     pub const fn len(&self) -> usize {
         self.lines.len()
     }
+
     pub fn permutations(&self, length: usize) -> Vec<Vec<Cell>> {
         match self.lines.split_last() {
             None => vec![vec![false; length]], // no hints, which means only one solution: a blank row/column
@@ -67,16 +68,38 @@ impl Hint<'_> {
             }
         }
     }
+
+    pub fn brute_progress(&self, section: &[Option<Cell>]) -> Option<Vec<Option<Cell>>> {
+        sum_perms(
+            self.permutations(section.len())
+                .into_iter()
+                .filter(|p| perm_matches(p, section)),
+        )
+    }
 }
 
-fn _overlay(dst: &mut [Option<Cell>], src: &[Option<Cell>]) {
+fn perm_matches(x: &[Cell], y: &[Option<Cell>]) -> bool {
+    assert_eq!(x.len(), y.len());
+    !x.iter().zip(y).any(|(a, b)| b == &Some(!a))
+}
+
+fn sum_perms<T>(mut perms: T) -> Option<Vec<Option<Cell>>>
+where
+    T: Iterator<Item = Vec<Cell>>,
+{
+    let first = perms.next()?.into_iter().map(Some).collect();
+    Some(perms.fold(first, overlay))
+}
+
+fn overlay(mut dst: Vec<Option<Cell>>, src: Vec<Cell>) -> Vec<Option<Cell>> {
     assert_eq!(dst.len(), src.len());
     for (a, b) in dst.iter_mut().zip(src) {
-        *a = match (*a, *b) {
-            (v, None) | (None, v) => v,
-            (Some(v1), Some(v2)) => (v1 == v2).then(|| v1),
+        *a = match (*a, b) {
+            (None, _) => None,
+            (Some(v1), v2) => (v1 == v2).then(|| v1),
         };
     }
+    dst
 }
 
 #[cfg(test)]
@@ -144,6 +167,29 @@ mod tests {
                 [false, true, true, false, false, true, true, true],
                 [false, false, true, true, false, true, true, true]
             ]
+        );
+    }
+
+    #[test]
+    fn basic_progress() {
+        let lines = [u(3)];
+        let h = Hint::new(&lines);
+        let section = [None; 6];
+        assert_eq!(
+            h.brute_progress(&section[..3]),
+            [Some(true), Some(true), Some(true)]
+        );
+        assert_eq!(
+            h.brute_progress(&section[..4]),
+            [None, Some(true), Some(true), None]
+        );
+        assert_eq!(
+            h.brute_progress(&section[..5]),
+            [None, None, Some(true), None, None]
+        );
+        assert_eq!(
+            h.brute_progress(&section[..6]),
+            [None, None, None, None, None, None]
         );
     }
 }
