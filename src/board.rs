@@ -78,8 +78,9 @@ impl<T> Board<T> {
     pub fn pos_mut(&mut self, x: usize, y: usize) -> &mut T {
         self.pos_checked_mut(x, y).unwrap()
     }
-    pub unsafe fn pos_unchecked(&self, x: usize, y: usize) -> &T {
-        let ptr = self.ptr.as_ptr();
+    pub const unsafe fn pos_unchecked(&self, x: usize, y: usize) -> &T {
+        // FIXME: cast to `*const T` required to make this function `const`.
+        let ptr = self.ptr.as_ptr() as *const T;
         // SAFETY: `self.ptr` is valid by the invariants of the type. The caller must ensure `i < self.width`, meaning this pointer is in bounds. Vec and Box never allocate more than isize::MAX bytes, so this add will not overflow.
         unsafe { &*ptr.add(x + self.width * y) }
     }

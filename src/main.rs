@@ -1,5 +1,5 @@
 #![warn(unsafe_op_in_unsafe_fn)]
-#![allow(dead_code, unused_variables)]
+#![allow(dead_code)]
 
 mod board;
 mod cell;
@@ -14,7 +14,7 @@ use std::pin::Pin;
 use std::time::Instant;
 
 struct HintHolder<'a> {
-    source: Pin<Vec<Vec<NonZeroUsize>>>,
+    _source: Pin<Vec<Vec<NonZeroUsize>>>,
     individuals: Vec<Hint<'a>>,
 }
 
@@ -27,7 +27,7 @@ impl<'a> HintHolder<'a> {
             .map(|v| Hint::new(unsafe { &*(v.as_slice() as *const [NonZeroUsize]) }))
             .collect();
         Self {
-            source,
+            _source: source,
             individuals,
         }
     }
@@ -113,9 +113,10 @@ impl fmt::Display for Picross<'_> {
 }
 
 fn make_hints(s: &str) -> Option<HintHolder> {
-    s.split(", ")
+    s.split(',')
         .map(|h| {
             h.split(' ')
+                .filter(|s| !s.is_empty())
                 .map(|n| n.parse().ok().and_then(NonZeroUsize::new))
                 .collect()
         })
@@ -129,12 +130,13 @@ fn main() {
     let row_hints = make_hints("1, 5, 3, 1 2, 3 4, 7, 7, 7, 3 3, 5").unwrap();
     let col_hints = make_hints("3, 1 5, 2 6, 8 1, 2 6, 1 5, 5, 2, 2, 2").unwrap();
     let mut b = Picross::new(row_hints.get(), col_hints.get());
+    println!();
     let start = Instant::now();
     let bs = b.find_solution();
     let time = start.elapsed();
     match bs {
-        Some(solved) => println!("\nFound solution:\n{}", solved),
-        None => println!("\nFailed - found partial solution:\n{}", b),
+        Some(solved) => println!("Found solution:\n{}", solved),
+        None => println!("Failed - found partial solution:\n{}", b),
     }
     println!("Time taken: {}μs", time.as_micros());
 }
