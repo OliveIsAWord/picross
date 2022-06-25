@@ -2,7 +2,6 @@ use std::fmt;
 use std::ptr::NonNull;
 use std::slice;
 
-#[derive(Debug)]
 pub struct Board<T> {
     ptr: NonNull<T>,
     width: usize,
@@ -20,9 +19,7 @@ impl<T> Board<T> {
     where
         F: FnMut() -> T,
     {
-        let vec = (0..width * height)
-            .map(|_| f())
-            .collect();
+        let vec = (0..width * height).map(|_| f()).collect();
         unsafe { Self::from_vec(vec, width, height) }
     }
     unsafe fn from_vec(vec: Vec<T>, width: usize, height: usize) -> Self {
@@ -140,6 +137,19 @@ where
     fn clone(&self) -> Self {
         let vec = self.as_slice().to_vec();
         unsafe { Self::from_vec(vec, self.width, self.height) }
+    }
+}
+
+impl<T> fmt::Debug for Board<T>
+where
+    T: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Board")
+            .field("data", &self.as_slice())
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .finish()
     }
 }
 
