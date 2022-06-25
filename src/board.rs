@@ -1,5 +1,6 @@
 use std::fmt;
 use std::ptr::NonNull;
+use std::slice;
 
 #[derive(Debug)]
 pub struct Board<T> {
@@ -13,12 +14,21 @@ impl<T> Board<T> {
     where
         T: Default,
     {
-        let alloc: Box<[T]> = (0..width * height)
-            .map(|_| T::default())
-            .collect::<Vec<_>>()
-            .into();
-        // SAFETY: Box::into_raw always returns a non-null pointer
+        Self::new_with(width, height, T::default)
+    }
+    pub fn new_with<F>(width: usize, height: usize, mut f: F) -> Self
+    where
+        F: FnMut() -> T,
+    {
+        let vec = (0..width * height)
+            .map(|_| f())
+            .collect();
+        unsafe { Self::from_vec(vec, width, height) }
+    }
+    unsafe fn from_vec(vec: Vec<T>, width: usize, height: usize) -> Self {
+        let alloc: Box<[T]> = vec.into();
         let raw_ptr = Box::into_raw(alloc).cast::<T>();
+        // SAFETY: Box::into_raw always returns a non-null pointer
         let ptr = unsafe { NonNull::new_unchecked(raw_ptr) };
         Self { ptr, width, height }
     }
@@ -59,13 +69,13 @@ impl<T> Board<T> {
         let ptr = self.ptr.as_ptr();
         // SAFETY: `self.ptr` is valid by the invariants of the type. The caller must ensure `i < self.width`, meaning this pointer is in bounds. Vec and Box never allocate more than isize::MAX bytes, so this add will not overflow.
         let start = unsafe { ptr.add(self.width * i) };
-        unsafe { std::slice::from_raw_parts(start, self.width) }
+        unsafe { slice::from_raw_parts(start, self.width) }
     }
     pub unsafe fn row_unchecked_mut(&mut self, i: usize) -> &mut [T] {
         let ptr = self.ptr.as_ptr();
         // SAFETY: `self.ptr` is valid by the invariants of the type. The caller must ensure `i < self.width`, meaning this pointer is in bounds. Vec and Box never allocate more than isize::MAX bytes, so this add will not overflow.
         let start = unsafe { ptr.add(self.width * i) };
-        unsafe { std::slice::from_raw_parts_mut(start, self.width) }
+        unsafe { slice::from_raw_parts_mut(start, self.width) }
     }
     pub unsafe fn pos_unchecked_mut(&mut self, x: usize, y: usize) -> &mut T {
         let ptr = self.ptr.as_ptr();
@@ -84,9 +94,13 @@ impl<T> Board<T> {
         // SAFETY: `self.ptr` is valid by the invariants of the type. The caller must ensure `i < self.width`, meaning this pointer is in bounds. Vec and Box never allocate more than isize::MAX bytes, so this add will not overflow.
         unsafe { &*ptr.add(x + self.width * y) }
     }
-    pub fn inner(&self) -> &[T] {
+    pub fn as_slice(&self) -> &[T] {
         let ptr = self.ptr.as_ptr();
-        unsafe { std::slice::from_raw_parts_mut(ptr, self.width * self.height) }
+        unsafe { slice::from_raw_parts(ptr, self.width * self.height) }
+    }
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
+        let ptr = self.ptr.as_ptr();
+        unsafe { slice::from_raw_parts_mut(ptr, self.width * self.height) }
     }
 }
 
@@ -94,6 +108,10 @@ impl<T> Board<T>
 where
     T: Clone,
 {
+    pub fn new(width: usize, height: usize, value: T) -> Self {
+        let vec = vec![value; width * height];
+        unsafe { Self::from_vec(vec, width, height) }
+    }
     pub unsafe fn col_unchecked(&self, x: usize) -> Vec<T> {
         (0..self.height)
             .map(|y| unsafe { self.pos_unchecked(x, y) }.clone())
@@ -115,6 +133,16 @@ where
     }
 }
 
+impl<T> Clone for Board<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        let vec = self.as_slice().to_vec();
+        unsafe { Self::from_vec(vec, self.width, self.height) }
+    }
+}
+
 impl<T> Default for Board<T> {
     fn default() -> Self {
         Self {
@@ -127,9 +155,7 @@ impl<T> Default for Board<T> {
 
 impl<T> Drop for Board<T> {
     fn drop(&mut self) {
-        let ptr = self.ptr.as_ptr();
-        let len = self.width * self.height;
-        let fat_ptr = unsafe { std::slice::from_raw_parts_mut(ptr, len) } as *mut [T];
+        let fat_ptr = self.as_slice_mut() as *mut [T];
         let _drop = unsafe { Box::from_raw(fat_ptr) };
     }
 }
@@ -176,5 +202,15 @@ const fn display_option_bool(x: Option<bool>) -> char {
     match x {
         Some(y) => display_bool(y),
         None => '?',
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sound_dangling_drop() {
+        let _drop: Board<bool> = Board::default();
     }
 }

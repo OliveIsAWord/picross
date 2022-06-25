@@ -36,12 +36,14 @@ impl<'a> HintHolder<'a> {
     }
 }
 
-#[derive(Debug, Default)]
+type GuessBoard = Board<Option<Cell>>;
+
+#[derive(Clone, Debug, Default)]
 struct Picross<'a> {
-    board: Board<Option<Cell>>,
+    board: GuessBoard,
     row_hints: &'a [Hint<'a>],
     col_hints: &'a [Hint<'a>],
-    _backtrack: Vec<Self>,
+    backtrack: Vec<GuessBoard>,
 }
 
 impl<'a> Picross<'a> {
@@ -84,7 +86,7 @@ impl Picross<'_> {
                 }
             }
             if progressed {
-                if self.board.inner().iter().all(Option::is_some) {
+                if self.board.as_slice().iter().all(Option::is_some) {
                     let (w, h) = (self.width(), self.height());
                     let mut finished_board = Board::new_default(w, h);
                     for y in 0..h {
@@ -130,7 +132,7 @@ fn main() {
     let row_hints = make_hints("1, 5, 3, 1 2, 3 4, 7, 7, 7, 3 3, 5").unwrap();
     let col_hints = make_hints("3, 1 5, 2 6, 8 1, 2 6, 1 5, 5, 2, 2, 2").unwrap();
     let mut b = Picross::new(row_hints.get(), col_hints.get());
-    println!();
+    println!("Running...");
     let start = Instant::now();
     let bs = b.find_solution();
     let time = start.elapsed();
@@ -139,4 +141,5 @@ fn main() {
         None => println!("Failed - found partial solution:\n{}", b),
     }
     println!("Time taken: {}μs", time.as_micros());
+    //assert!(bs.is_some());
 }
