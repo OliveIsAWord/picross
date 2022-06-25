@@ -176,19 +176,19 @@ mod tests {
         let h = Hint::new(&lines);
         let section = [None; 6];
         assert_eq!(
-            h.brute_progress(&section[..3]),
+            h.brute_progress(&section[..3]).unwrap(),
             [Some(true), Some(true), Some(true)]
         );
         assert_eq!(
-            h.brute_progress(&section[..4]),
+            h.brute_progress(&section[..4]).unwrap(),
             [None, Some(true), Some(true), None]
         );
         assert_eq!(
-            h.brute_progress(&section[..5]),
+            h.brute_progress(&section[..5]).unwrap(),
             [None, None, Some(true), None, None]
         );
         assert_eq!(
-            h.brute_progress(&section[..6]),
+            h.brute_progress(&section[..6]).unwrap(),
             [None, None, None, None, None, None]
         );
     }
