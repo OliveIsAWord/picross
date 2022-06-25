@@ -81,12 +81,12 @@ impl Hint<'_> {
     }
 }
 
-fn perm_matches(x: &[Cell], y: &[Option<Cell>]) -> bool {
+pub fn perm_matches(x: &[Cell], y: &[Option<Cell>]) -> bool {
     assert_eq!(x.len(), y.len());
     !x.iter().zip(y).any(|(a, b)| b == &Some(!a))
 }
 
-fn sum_perms<T>(mut perms: T) -> Option<Vec<Option<Cell>>>
+pub fn sum_perms<T>(mut perms: T) -> Option<Vec<Option<Cell>>>
 where
     T: Iterator<Item = Vec<Cell>>,
 {

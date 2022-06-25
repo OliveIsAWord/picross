@@ -54,6 +54,9 @@ impl<T> Board<T> {
     pub fn row(&self, i: usize) -> &[T] {
         self.row_checked(i).unwrap()
     }
+    pub fn row_mut(&mut self, i: usize) -> &mut [T] {
+        self.row_checked_mut(i).unwrap()
+    }
     pub fn row_checked(&self, i: usize) -> Option<&[T]> {
         // SAFETY: We only call `row_unchecked` once we have checked `i < self.height`
         (i < self.height).then(|| unsafe { self.row_unchecked(i) })

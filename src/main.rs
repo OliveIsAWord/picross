@@ -37,34 +37,38 @@ impl<'a> HintHolder<'a> {
 }
 
 type GuessBoard = Board<Option<Cell>>;
+type SectionPerms = Vec<Vec<Vec<Cell>>>;
 
 #[derive(Clone, Debug, Default)]
-struct Picross<'a> {
+struct Picross {
     board: GuessBoard,
-    row_hints: &'a [Hint<'a>],
-    col_hints: &'a [Hint<'a>],
-    backtrack: Vec<GuessBoard>,
+    rows_perms: SectionPerms,
+    cols_perms: SectionPerms,
+    backtrack: Vec<(GuessBoard, SectionPerms, SectionPerms)>,
     pub num_backtracks: usize,
 }
 
-impl<'a> Picross<'a> {
-    pub fn new(row_hints: &'a [Hint<'a>], col_hints: &'a [Hint<'a>]) -> Self {
+impl Picross {
+    pub fn new(row_hints: &[Hint<'_>], col_hints: &[Hint<'_>]) -> Self {
+        let get_perms =
+            |hints: &[Hint<'_>], len| hints.iter().map(|hint| hint.permutations(len)).collect();
+        let (w, h) = (col_hints.len(), row_hints.len());
         Self {
-            board: Board::new_default(col_hints.len(), row_hints.len()),
-            row_hints,
-            col_hints,
+            board: Board::new_default(w, h),
+            rows_perms: get_perms(row_hints, w),
+            cols_perms: get_perms(col_hints, h),
             backtrack: vec![],
             num_backtracks: 0,
         }
     }
 }
 
-impl Picross<'_> {
+impl Picross {
     pub const fn width(&self) -> usize {
-        self.col_hints.len()
+        self.board.width()
     }
     pub const fn height(&self) -> usize {
-        self.row_hints.len()
+        self.board.height()
     }
     pub fn get_solutions(&mut self) -> Vec<Board<Cell>> {
         let mut solutions = vec![];
@@ -74,55 +78,84 @@ impl Picross<'_> {
         solutions
     }
     pub fn find_solution(&mut self) -> Option<Board<Cell>> {
+        let mut first_run = true;
         loop {
             //print!("å");
             let mut progressed = false;
             let mut backtracked = false;
-            for (y, hint) in self.row_hints.iter().enumerate() {
+            // for (y, hint) in self.row_hints.iter().enumerate() {
+            //     let row = self.board.row(y);
+            //     let new_row = match hint.brute_progress(row) {
+            //         Some(r) => r,
+            //         None => {
+            //             self.board = self.backtrack.pop()?;
+            //             backtracked = true;
+            //             break;
+            //         }
+            //     };
+            //     if row != new_row {
+            //         self.board.set_row(y, new_row);
+            //         progressed = true;
+            //         //println!("-----------\n{}", self.board);
+            //     }
+            // }
+            for (y, row_perms) in self.rows_perms.iter_mut().enumerate() {
+                //println!("row {} -> {:?}", y, row_perms);
                 let row = self.board.row(y);
-                let new_row = match hint.brute_progress(row) {
-                    Some(r) => r,
-                    None => {
-                        self.board = self.backtrack.pop()?;
-                        backtracked = true;
-                        break;
+                let old_len = row_perms.len();
+                row_perms.retain(|perm| hint::perm_matches(perm, row));
+                if row_perms.len() < old_len || first_run {
+                    let new_row = match hint::sum_perms(row_perms.clone().into_iter()) {
+                        Some(r) => r,
+                        None => {
+                            //println!("Found contradiction, attempting backtrack.");
+                            (self.board, self.rows_perms, self.cols_perms) =
+                                self.backtrack.pop()?;
+                            backtracked = true;
+                            break;
+                        }
+                    };
+                    //println!("Found {:?}", new_row);
+                    if new_row != row {
+                        //println!("Filling in...");
+                        progressed = true;
+                        self.board.set_row(y, new_row);
                     }
-                };
-                if row != new_row {
-                    // if y >= 15 {
-                    //     eprintln!("wtf???");
-                    //     dbg!(y);
-                    //     eprintln!("row     {:?}", row);
-                    //     eprintln!("new_row {:?}", new_row);
-                    //     eprintln!("{}", self);
-                    // }
-                    self.board.set_row(y, new_row);
-                    progressed = true;
-                    //println!("-----------\n{}", self.board);
                 }
             }
             if backtracked {
                 continue;
             }
-            for (x, hint) in self.col_hints.iter().enumerate() {
+
+            for (x, col_perms) in self.cols_perms.iter_mut().enumerate() {
+                //println!("col {} -> {:?}", x, col_perms);
                 let col = self.board.col(x);
-                let new_col = match hint.brute_progress(&col) {
-                    Some(c) => c,
-                    None => {
-                        self.board = self.backtrack.pop()?;
-                        backtracked = true;
-                        break;
+                let old_len = col_perms.len();
+                col_perms.retain(|perm| hint::perm_matches(perm, &col));
+                if col_perms.len() < old_len || first_run {
+                    let new_col = match hint::sum_perms(col_perms.clone().into_iter()) {
+                        Some(r) => r,
+                        None => {
+                            //println!("Found contradiction, attempting backtrack.");
+                            (self.board, self.rows_perms, self.cols_perms) =
+                                self.backtrack.pop()?;
+                            backtracked = true;
+                            break;
+                        }
+                    };
+                    //println!("Found {:?}", new_col);
+                    if new_col != col {
+                        //println!("Filling in...");
+                        progressed = true;
+                        self.board.set_col(x, new_col);
                     }
-                };
-                if col != new_col {
-                    self.board.set_col(x, new_col);
-                    progressed = true;
-                    //println!("-----------\n{}", self.board);
                 }
             }
             if backtracked {
                 continue;
             }
+
+            first_run = false;
             if progressed {
                 if self.board.as_slice().iter().all(Option::is_some) {
                     // Found a solution
@@ -152,18 +185,21 @@ impl Picross<'_> {
                     .find_map(|(i, v)| v.is_none().then(|| i));
                 match i {
                     Some(i) => {
-                        //unreachable!();
                         // Found an unsolved cell, branch into two different boards where that cell is filled or unfilled.
                         let mut alternate = self.board.clone();
                         self.board.as_slice_mut()[i] = Some(true);
                         alternate.as_slice_mut()[i] = Some(false);
-                        self.backtrack.push(alternate);
+                        self.backtrack.push((
+                            alternate,
+                            self.rows_perms.clone(),
+                            self.cols_perms.clone(),
+                        ));
                         self.num_backtracks += 1;
                         println!("uwu {} -> {}", self.num_backtracks, self.backtrack.len());
                     }
                     None => {
                         // If all cells are solved, attempt to backtrack.
-                        self.board = self.backtrack.pop()?;
+                        (self.board, self.rows_perms, self.cols_perms) = self.backtrack.pop()?;
                         println!("owo");
                     }
                 }
@@ -172,7 +208,7 @@ impl Picross<'_> {
     }
 }
 
-impl fmt::Display for Picross<'_> {
+impl fmt::Display for Picross {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.board)
     }
@@ -213,7 +249,9 @@ fn main() {
         3 3, 3 3, 1 1 1 1, 7, 7",
     )
     .unwrap();
-    //let (row_hints, col_hints) = (col_hints, row_hints);
+    // let row_hints = make_hints("3, 4, 3, 4, 4").unwrap();
+    // let col_hints = make_hints("2 1, 4, 5, 2 2, 1 1").unwrap();
+    // let (row_hints, col_hints) = (col_hints, row_hints);
     //assert_eq!(row_hints.get().len(), 15);
     //assert_eq!(col_hints.get().len(), 20);
     let mut b = Picross::new(row_hints.get(), col_hints.get());
@@ -236,9 +274,9 @@ fn main() {
             }
             None => {
                 if successful {
-                    println!("No more solutions found.")
+                    println!("No more solutions found.");
                 } else {
-                    println!("Failed - found partial solution:\n{}", b)
+                    println!("Failed - found partial solution:\n{}", b);
                 }
                 if b.num_backtracks > 0 {
                     println!("Required {} backtracks.", b.num_backtracks);
