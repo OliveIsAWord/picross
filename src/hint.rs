@@ -39,6 +39,9 @@ impl Hint<'_> {
             }
             Some((last, rest)) => {
                 let line_len = last.get();
+                if line_len > length {
+                    return vec![];
+                }
                 let last_array = [*last];
                 let line = Hint {
                     // can't use Self since the slice has a shorter lifetime

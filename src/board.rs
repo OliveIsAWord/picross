@@ -60,7 +60,7 @@ impl<T> Board<T> {
     }
     pub fn row_checked_mut(&mut self, i: usize) -> Option<&mut [T]> {
         // SAFETY: We only call `row_unchecked_mut` once we have checked `i < self.width`
-        (i < self.width).then(|| unsafe { self.row_unchecked_mut(i) })
+        (i < self.height).then(|| unsafe { self.row_unchecked_mut(i) })
     }
     pub unsafe fn row_unchecked(&self, i: usize) -> &[T] {
         let ptr = self.ptr.as_ptr();
