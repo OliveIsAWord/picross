@@ -52,7 +52,7 @@ impl<'a> Picross<'a> {
             board: Board::new_default(col_hints.len(), row_hints.len()),
             row_hints,
             col_hints,
-            ..Self::default()
+            backtrack: vec![],
         }
     }
 }
@@ -63,6 +63,13 @@ impl Picross<'_> {
     }
     pub const fn height(&self) -> usize {
         self.row_hints.len()
+    }
+    pub fn get_solutions(&mut self) -> Vec<Board<Cell>> {
+        let mut solutions = vec![];
+        while let Some(solution) = self.find_solution() {
+            solutions.push(solution);
+        }
+        solutions
     }
     pub fn find_solution(&mut self) -> Option<Board<Cell>> {
         loop {
@@ -87,6 +94,7 @@ impl Picross<'_> {
             }
             if progressed {
                 if self.board.as_slice().iter().all(Option::is_some) {
+                    // Found a solution
                     let (w, h) = (self.width(), self.height());
                     let mut finished_board = Board::new_default(w, h);
                     for y in 0..h {
@@ -102,7 +110,27 @@ impl Picross<'_> {
                     return Some(finished_board);
                 }
             } else {
-                return None;
+                // Solver got stuck, do bifurcation
+                // TODO: Does this code only execute if there are multiple solutions?
+                // First, find unsolved cell
+                let i = self.board
+                    .as_slice()
+                    .iter()
+                    .enumerate()
+                    .find_map(|(i, v)| v.is_none().then(|| i));
+                match i {
+                    Some(i) => {
+                        // Found an unsolved cell, branch into two different boards where that cell is filled or unfilled.
+                        let mut alternate = self.board.clone();
+                        self.board.as_slice_mut()[i] = Some(true);
+                        alternate.as_slice_mut()[i] = Some(false);
+                        self.backtrack.push(alternate);
+                    }
+                    None => {
+                        // If all cells are solved, attempt to backtrack.
+                        self.board = self.backtrack.pop()?;
+                    }
+                }
             }
         }
     }
@@ -129,17 +157,26 @@ fn make_hints(s: &str) -> Option<HintHolder> {
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
     //std::env::set_var("RUST_BACKTRACE", "full");
-    let row_hints = make_hints("1, 5, 3, 1 2, 3 4, 7, 7, 7, 3 3, 5").unwrap();
-    let col_hints = make_hints("3, 1 5, 2 6, 8 1, 2 6, 1 5, 5, 2, 2, 2").unwrap();
+    let row_hints = make_hints("1, 1").unwrap();
+    let col_hints = make_hints("1, 1").unwrap();
     let mut b = Picross::new(row_hints.get(), col_hints.get());
     println!("Running...");
-    let start = Instant::now();
-    let bs = b.find_solution();
-    let time = start.elapsed();
-    match bs {
-        Some(solved) => println!("Found solution:\n{}", solved),
-        None => println!("Failed - found partial solution:\n{}", b),
+    loop {
+        let start = Instant::now();
+        let bs = b.find_solution();
+        let time = start.elapsed();
+        let mut uwu = false;
+        match bs {
+            Some(solved) => println!("Found solution:\n{}", solved),
+            None => {
+                println!("Failed - found partial solution:\n{}", b);
+                uwu = true;
+            }
+        }
+        println!("Time taken: {}μs", time.as_micros());
+        if uwu {
+            break;
+        }
     }
-    println!("Time taken: {}μs", time.as_micros());
     //assert!(bs.is_some());
 }
