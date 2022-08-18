@@ -174,6 +174,23 @@ mod tests {
     }
 
     #[test]
+    fn large_perms_one() {
+        let lines = [u(1)];
+        let h = Hint::new(&lines);
+        assert_eq!(h.permutations(10).len(), 10);
+        assert_eq!(h.permutations(100).len(), 100);
+        assert_eq!(h.permutations(500).len(), 500);
+    }
+    #[test]
+    fn large_perms_two() {
+        let lines = [u(1), u(1)];
+        let h = Hint::new(&lines);
+        assert_eq!(h.permutations(10).len(), 36);
+        assert_eq!(h.permutations(100).len(), 4851);
+        //assert_eq!(h.permutations(500).len(), 124251);
+    }
+
+    #[test]
     fn basic_progress() {
         let lines = [u(3)];
         let h = Hint::new(&lines);

@@ -50,9 +50,9 @@ struct Picross {
 
 impl Picross {
     pub fn new(row_hints: &[Hint<'_>], col_hints: &[Hint<'_>]) -> Self {
+        let (w, h) = (col_hints.len(), row_hints.len());
         let get_perms =
             |hints: &[Hint<'_>], len| hints.iter().map(|hint| hint.permutations(len)).collect();
-        let (w, h) = (col_hints.len(), row_hints.len());
         Self {
             board: Board::new_default(w, h),
             rows_perms: get_perms(row_hints, w),
@@ -83,22 +83,6 @@ impl Picross {
             //print!("å");
             let mut progressed = false;
             let mut backtracked = false;
-            // for (y, hint) in self.row_hints.iter().enumerate() {
-            //     let row = self.board.row(y);
-            //     let new_row = match hint.brute_progress(row) {
-            //         Some(r) => r,
-            //         None => {
-            //             self.board = self.backtrack.pop()?;
-            //             backtracked = true;
-            //             break;
-            //         }
-            //     };
-            //     if row != new_row {
-            //         self.board.set_row(y, new_row);
-            //         progressed = true;
-            //         //println!("-----------\n{}", self.board);
-            //     }
-            // }
             for (y, row_perms) in self.rows_perms.iter_mut().enumerate() {
                 //println!("row {} -> {:?}", y, row_perms);
                 let row = self.board.row(y);
@@ -154,7 +138,6 @@ impl Picross {
             if backtracked {
                 continue;
             }
-
             first_run = false;
             if progressed {
                 if self.board.as_slice().iter().all(Option::is_some) {
@@ -236,17 +219,29 @@ fn main() {
             .unwrap();
     let _col_hints =
         make_hints("6, 5, 4 2, 6, 7 3, 2 3, 2 2, 2 2 1, 3 1, 1 1, 1 2, 2, 1, 2, 2").unwrap();
-    let row_hints = make_hints(
+    let _row_hints = make_hints(
         "4, 7, 3 2 3, 4 4 1 4, 3 2 3 2 2,
         1 8 3, 2 4 2, 2 2 2, 1 6 2, 3 6 3,
         3 3 3 2 2, 6 1 1 4, 5 3, 6, 3",
     )
     .unwrap();
-    let col_hints = make_hints(
+    let _col_hints = make_hints(
         "1 1 1 1, 1 1 1 1, 4 5, 4 5, 3 1 5,
         2 3 1 3, 4 3 1, 2 2 3, 6 1, 2 3,
         2 2, 7, 9, 3 3, 2 1 1 2,
         3 3, 3 3, 1 1 1 1, 7, 7",
+    )
+    .unwrap();
+    let row_hints = make_hints(
+        "2 2, 3 4, 3 6, 3 7, 3 5,
+        3 3, 1 4, 2 3, 8, 4 3,
+        4 6, 4 4, 3 1 2, 3 2 2, 2 1 1",
+    )
+    .unwrap();
+    let col_hints = make_hints(
+        "2 2, 3 4, 3 6, 3 7, 3 5,
+        3 3, 1 4, 2 3, 8, 4 3,
+        4 6, 4 2 1, 3 3, 3 4, 2 1 2",
     )
     .unwrap();
     // let row_hints = make_hints("3, 4, 3, 4, 4").unwrap();
