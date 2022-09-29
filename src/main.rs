@@ -80,11 +80,9 @@ impl Picross {
     pub fn find_solution(&mut self) -> Option<Board<Cell>> {
         let mut first_run = true;
         loop {
-            //print!("å");
             let mut progressed = false;
             let mut backtracked = false;
             for (y, row_perms) in self.rows_perms.iter_mut().enumerate() {
-                //println!("row {} -> {:?}", y, row_perms);
                 let row = self.board.row(y);
                 let old_len = row_perms.len();
                 row_perms.retain(|perm| hint::perm_matches(perm, row));
@@ -92,16 +90,13 @@ impl Picross {
                     let new_row = match hint::sum_perms(row_perms.clone().into_iter()) {
                         Some(r) => r,
                         None => {
-                            //println!("Found contradiction, attempting backtrack.");
                             (self.board, self.rows_perms, self.cols_perms) =
                                 self.backtrack.pop()?;
                             backtracked = true;
                             break;
                         }
                     };
-                    //println!("Found {:?}", new_row);
                     if new_row != row {
-                        //println!("Filling in...");
                         progressed = true;
                         self.board.set_row(y, new_row);
                     }
@@ -112,7 +107,6 @@ impl Picross {
             }
 
             for (x, col_perms) in self.cols_perms.iter_mut().enumerate() {
-                //println!("col {} -> {:?}", x, col_perms);
                 let col = self.board.col(x);
                 let old_len = col_perms.len();
                 col_perms.retain(|perm| hint::perm_matches(perm, &col));
@@ -120,16 +114,13 @@ impl Picross {
                     let new_col = match hint::sum_perms(col_perms.clone().into_iter()) {
                         Some(r) => r,
                         None => {
-                            //println!("Found contradiction, attempting backtrack.");
                             (self.board, self.rows_perms, self.cols_perms) =
                                 self.backtrack.pop()?;
                             backtracked = true;
                             break;
                         }
                     };
-                    //println!("Found {:?}", new_col);
                     if new_col != col {
-                        //println!("Filling in...");
                         progressed = true;
                         self.board.set_col(x, new_col);
                     }
@@ -165,7 +156,7 @@ impl Picross {
                     .as_slice()
                     .iter()
                     .enumerate()
-                    .find_map(|(i, v)| v.is_none().then(|| i));
+                    .find_map(|(i, v)| v.is_none().then_some(i));
                 match i {
                     Some(i) => {
                         // Found an unsolved cell, branch into two different boards where that cell is filled or unfilled.
@@ -178,12 +169,12 @@ impl Picross {
                             self.cols_perms.clone(),
                         ));
                         self.num_backtracks += 1;
-                        println!("uwu {} -> {}", self.num_backtracks, self.backtrack.len());
+                        //println!("uwu {} -> {}", self.num_backtracks, self.backtrack.len());
                     }
                     None => {
                         // If all cells are solved, attempt to backtrack.
                         (self.board, self.rows_perms, self.cols_perms) = self.backtrack.pop()?;
-                        println!("owo");
+                        //println!("owo");
                     }
                 }
             }
@@ -210,28 +201,28 @@ fn make_hints(s: &str) -> Option<HintHolder> {
 }
 
 fn main() {
-    std::env::set_var("RUST_BACKTRACE", "1");
-    //std::env::set_var("RUST_BACKTRACE", "full");
-    let _row_hints = make_hints("2 1 1 1 1 1 1, 5 1 1 4, 4 4, 1 1, 3, 7, 6, 3, 1 3, 2 4, 3 8, 13, 12, 12, 15, 6 2 1, 6 1 2 1, 2 1 1 2 3 1 1, 2 2 1 4 1 2 1, 5 1 2 1 2 1 2").unwrap();
-    let _col_hints = make_hints("2 4, 4 6, 7 1, 1 9, 2 6 2, 1 6, 2 6 3, 1 5, 3 5 2, 1 1 10, 1 2 7 2, 15 2, 11, 15 3, 1 2 1 2 1, 1 2 4, 3 2, 1 3, 2 1, 1 3").unwrap();
-    let _row_hints =
-        make_hints("2, 1 1, 1 2, 1 3, 1 1 2, 1 1 2, 1 2 1, 1 5, 1 3, 3, 3, 1 2, 1 2 2, 4 5, 2 5")
-            .unwrap();
-    let _col_hints =
-        make_hints("6, 5, 4 2, 6, 7 3, 2 3, 2 2, 2 2 1, 3 1, 1 1, 1 2, 2, 1, 2, 2").unwrap();
-    let _row_hints = make_hints(
-        "4, 7, 3 2 3, 4 4 1 4, 3 2 3 2 2,
-        1 8 3, 2 4 2, 2 2 2, 1 6 2, 3 6 3,
-        3 3 3 2 2, 6 1 1 4, 5 3, 6, 3",
-    )
-    .unwrap();
-    let _col_hints = make_hints(
-        "1 1 1 1, 1 1 1 1, 4 5, 4 5, 3 1 5,
-        2 3 1 3, 4 3 1, 2 2 3, 6 1, 2 3,
-        2 2, 7, 9, 3 3, 2 1 1 2,
-        3 3, 3 3, 1 1 1 1, 7, 7",
-    )
-    .unwrap();
+    // std::env::set_var("RUST_BACKTRACE", "1");
+    // std::env::set_var("RUST_BACKTRACE", "full");
+    // let row_hints = make_hints("2 1 1 1 1 1 1, 5 1 1 4, 4 4, 1 1, 3, 7, 6, 3, 1 3, 2 4, 3 8, 13, 12, 12, 15, 6 2 1, 6 1 2 1, 2 1 1 2 3 1 1, 2 2 1 4 1 2 1, 5 1 2 1 2 1 2").unwrap();
+    // let col_hints = make_hints("2 4, 4 6, 7 1, 1 9, 2 6 2, 1 6, 2 6 3, 1 5, 3 5 2, 1 1 10, 1 2 7 2, 15 2, 11, 15 3, 1 2 1 2 1, 1 2 4, 3 2, 1 3, 2 1, 1 3").unwrap();
+    // let row_hints =
+    //     make_hints("2, 1 1, 1 2, 1 3, 1 1 2, 1 1 2, 1 2 1, 1 5, 1 3, 3, 3, 1 2, 1 2 2, 4 5, 2 5")
+    //         .unwrap();
+    // let col_hints =
+    //     make_hints("6, 5, 4 2, 6, 7 3, 2 3, 2 2, 2 2 1, 3 1, 1 1, 1 2, 2, 1, 2, 2").unwrap();
+    // let row_hints = make_hints(
+    //     "4, 7, 3 2 3, 4 4 1 4, 3 2 3 2 2,
+    //     1 8 3, 2 4 2, 2 2 2, 1 6 2, 3 6 3,
+    //     3 3 3 2 2, 6 1 1 4, 5 3, 6, 3",
+    // )
+    // .unwrap();
+    // let col_hints = make_hints(
+    //     "1 1 1 1, 1 1 1 1, 4 5, 4 5, 3 1 5,
+    //     2 3 1 3, 4 3 1, 2 2 3, 6 1, 2 3,
+    //     2 2, 7, 9, 3 3, 2 1 1 2,
+    //     3 3, 3 3, 1 1 1 1, 7, 7",
+    // )
+    // .unwrap();
     let row_hints = make_hints(
         "2 2, 3 4, 3 6, 3 7, 3 5,
         3 3, 1 4, 2 3, 8, 4 3,

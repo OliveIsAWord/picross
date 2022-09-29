@@ -179,8 +179,8 @@ impl fmt::Display for Board<bool> {
             if y > 0 {
                 writeln!(f)?;
             }
-            for v in self.row(y) {
-                let c = display_bool(*v);
+            for &v in self.row(y) {
+                let c = display_bool(v);
                 write!(f, "{}", c)?;
             }
         }
@@ -194,8 +194,8 @@ impl fmt::Display for Board<Option<bool>> {
             if y > 0 {
                 writeln!(f)?;
             }
-            for v in self.row(y) {
-                let c = display_option_bool(*v);
+            for &v in self.row(y) {
+                let c = display_option_bool(v);
                 write!(f, "{}", c)?;
             }
         }

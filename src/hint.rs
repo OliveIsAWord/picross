@@ -99,7 +99,7 @@ fn overlay(mut dst: Vec<Option<Cell>>, src: Vec<Cell>) -> Vec<Option<Cell>> {
     for (a, b) in dst.iter_mut().zip(src) {
         *a = match (*a, b) {
             (None, _) => None,
-            (Some(v1), v2) => (v1 == v2).then(|| v1),
+            (Some(v1), v2) => (v1 == v2).then_some(v1),
         };
     }
     dst
